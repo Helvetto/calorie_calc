@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Калькулятор КБЖУ и Дневник питания</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --border-color: #cbd5e1;
+            --danger: #ef4444;
+            --success: #22c55e;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 15px;
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2, h3 {
+            color: #0f172a;
+            margin-top: 0;
+        }
+        .section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        input, select, textarea, button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        textarea {
+            resize: vertical;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+        button.danger {
+            background-color: var(--danger);
+        }
+        button.danger:hover {
+            background-color: #dc2626;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
+        }
+        th {
+            background-color: #f1f5f9;
+        }
+        .totals {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        /* Стили для графических индикаторов прогресса */
+        .progress-container {
+            margin-top: 15px;
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .progress-bar-wrapper {
+            margin-bottom: 10px;
+        }
+        .progress-bar-wrapper:last-child {
+            margin-bottom: 0;
+        }
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .progress-bar-bg {
+            background-color: #e2e8f0;
+            border-radius: 4px;
+            height: 10px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background-color: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .progress-bar-fill.warning {
+            background-color: #eab308;
+        }
+        .progress-bar-fill.success {
+            background-color: var(--success);
+        }
+        .progress-bar-fill.danger {
+            background-color: var(--danger);
+        }
+        .backup-btns {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Калькулятор КБЖУ и Дневник</h1>
+
+    <!-- Секция параметров -->
+    <div class="section">
+        <h2>Параметры и Нормы</h2>
+        <div class="grid">
+            <div>
+                <label>Вес (кг)</label>
+                <input type="number" id="weight" value="84.1" step="0.1" onchange="updateProfile()">
+            </div>
+            <div>
+                <label>Рост (см)</label>
+                <input type="number" id="height" value="170" onchange="updateProfile()">
+            </div>
+            <div>
+                <label>Возраст</label>
+                <input type="number" id="age" value="59" onchange="updateProfile()">
+            </div>
+            <div>
+                <label>Активность</label>
+                <select id="activity" onchange="updateProfile()">
+                    <option value="1.2" selected>1.2 — Сидячий образ</option>
+                    <option value="1.375">1.375 — Легкая активность</option>
+                    <option value="1.55">1.55 — Умеренная</option>
+                </select>
+            </div>
+        </div>
+        <div class="totals" id="norms-display">
+            <!-- Рассчитывается динамически -->
+        </div>
+    </div>
+
+    <!-- Секция дневника -->
+    <div class="section">
+        <h2>Дневник питания</h2>
+        <div class="grid">
+            <div>
+                <label>Дата</label>
+                <input type="date" id="diary-date" onchange="loadDayData()">
+            </div>
+            <div>
+                <label>Выберите продукт</label>
+                <select id="food-select">
+                    <!-- Заполняется из базы -->
+                </select>
+            </div>
+            <div>
+                <label>Масса (г)</label>
+                <input type="number" id="food-amount" value="100" step="1">
+            </div>
+            <div style="display: flex; align-items: flex-end;">
+                <button onclick="addFoodToDiary()">Добавить</button>
+            </div>
+        </div>
+
+        <h3>Съедено за день:</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Продукт</th>
+                    <th>Ккал</th>
+                    <th>Б (г)</th>
+                    <th>Ж (г)</th>
+                    <th>У (г)</th>
+                    <th>Действие</th>
+                </tr>
+            </thead>
+            <tbody id="diary-table-body">
+                <!-- Записи дня -->
+            </tbody>
+        </table>
+
+        <div class="totals" id="day-totals">
+            Итого за день: 0 ккал | Б: 0г | Ж: 0г | У: 0г
+        </div>
+
+        <!-- Графическое отображение прогресса (индикаторы) -->
+        <div class="progress-container">
+            <h3 style="font-size: 15px; margin-bottom: 10px;">Прогресс от нормы:</h3>
+            
+            <div class="progress-bar-wrapper">
+                <div class="progress-label">
+                    <span id="label-cal">Калории: 0 / 0 ккал</span>
+                    <span id="percent-cal">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="bar-cal" style="width: 0%;"></div>
+                </div>
+            </div>
+
+            <div class="progress-bar-wrapper">
+                <div class="progress-label">
+                    <span id="label-p">Белки: 0 / 0 г</span>
+                    <span id="percent-p">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="bar-p" style="width: 0%;"></div>
+                </div>
+            </div>
+
+            <div class="progress-bar-wrapper">
+                <div class="progress-label">
+                    <span id="label-f">Жиры: 0 / 0 г</span>
+                    <span id="percent-f">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="bar-f" style="width: 0%;"></div>
+                </div>
+            </div>
+
+            <div class="progress-bar-wrapper">
+                <div class="progress-label">
+                    <span id="label-c">Углеводы: 0 / 0 г</span>
+                    <span id="percent-c">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="bar-c" style="width: 0%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Секция управления базой продуктов -->
+    <div class="section">
+        <h2>База продуктов (100 г)</h2>
+        <div class="grid">
+            <div>
+                <label>Название</label>
+                <input type="text" id="new-food-name" placeholder="Например: Творог">
+            </div>
+            <div>
+                <label>Ккал (на 100г)</label>
+                <input type="number" id="new-food-cal" placeholder="0">
+            </div>
+            <div>
+                <label>Белки</label>
+                <input type="number" id="new-food-p" step="0.1" placeholder="0">
+            </div>
+            <div>
+                <label>Жиры</label>
+                <input type="number" id="new-food-f" step="0.1" placeholder="0">
+            </div>
+            <div>
+                <label>Углеводы</label>
+                <input type="number" id="new-food-c" step="0.1" placeholder="0">
+            </div>
+            <div style="display: flex; align-items: flex-end;">
+                <button onclick="addNewFood()">Добавить в базу</button>
+            </div>
+        </div>
+
+        <h3>Список продуктов:</h3>
+        <input type="text" id="food-search" placeholder="Поиск по продуктам..." oninput="renderFoodSelect()" style="margin-bottom: 10px;">
+        <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px;">
+            <table id="food-db-table">
+                <thead>
+                    <tr>
+                        <th>Продукт</th>
+                        <th>Ккал</th>
+                        <th>Б / Ж / У</th>
+                        <th>Действие</th>
+                    </tr>
+                </thead>
+                <tbody id="food-db-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Резервное копирование -->
+    <div class="section" style="border: none; margin-bottom: 0;">
+        <h2>Резервная копия данных</h2>
+        <div class="backup-btns">
+            <button onclick="exportData()">Экспорт (Скачать бэкап)</button>
+            <button onclick="document.getElementById('import-file').click()" class="success" style="background: var(--success);">Импорт (Выбрать файл)</button>
+            <input type="file" id="import-file" style="display: none;" onchange="importData(event)">
+        </div>
+
+        <div style="margin-top: 15px;">
+            <label>Или вставьте текст JSON-бэкапа из буфера обмена:</label>
+            <textarea id="import-json-text" rows="3" placeholder="Вставьте скопированный текст бэкапа сюда..."></textarea>
+            <button onclick="importFromJsonText()" style="margin-top: 8px; background-color: #0284c7;">Импортировать из текста</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let profile = {
+        weight: 84.1,
+        height: 170,
+        age: 59,
+        activity: 1.2
+    };
+
+    let foodLogsByDate = {};
+    let savedCustomFoods = [
+        { name: "Арбуз", cal100: 30, p100: 0.6, f100: 0.2, c100: 7.6 },
+        { name: "Банан", cal100: 89, p100: 1.1, f100: 0.3, c100: 22.8 },
+        { name: "Буженина из свинины", cal100: 235, p100: 19.5, f100: 17, c100: 0.5 },
+        { name: "Виноград чёрный", cal100: 70, p100: 0.7, f100: 0.2, c100: 16.5 },
+        { name: "Гречка отварная", cal100: 110, p100: 4.2, f100: 1.1, c100: 21.3 },
+        { name: "Изюм, замоченный на ночь", cal100: 140, p100: 1.5, f100: 0.2, c100: 35 },
+        { name: "Капуста квашеная", cal100: 20, p100: 1, f100: 0, c100: 4 },
+        { name: "Курага, замоченная в воде", cal100: 120, p100: 2.6, f100: 0.2, c100: 25 },
+        { name: "Куриное яйцо варёное", cal100: 150, p100: 12.6, f100: 10.6, c100: 0.7 },
+        { name: "Моцарелла", cal100: 245, p100: 18, f100: 18, c100: 1.5 },
+        { name: "Овсяное печенье с изюмом", cal100: 380, p100: 6.8, f100: 14.5, c100: 56 },
+        { name: "Огурцы / Помидоры", cal100: 20, p100: 0.9, f100: 0.2, c100: 4.2 },
+        { name: "Помидор", cal100: 20, p100: 0.9, f100: 0.2, c100: 4.2 },
+        { name: "Рис белый отварной", cal100: 116, p100: 2.2, f100: 0.5, c100: 24.9 },
+        { name: "Сливочное масло 82.5%", cal100: 750, p100: 0.5, f100: 82.5, c100: 1.0 },
+        { name: "Сыр полутвердый / твердый (45%)", cal100: 350, p100: 25, f100: 27, c100: 0 },
+        { name: "Творог с сырковой массой", cal100: 245, p100: 11, f100: 10.5, c100: 23 },
+        { name: "Тульский пряник со смородиной", cal100: 360, p100: 4.5, f100: 5.5, c100: 73 },
+        { name: "Фетучини с перепёлками", cal100: 195, p100: 9.5, f100: 6.5, c100: 22 },
+        { name: "Хлеб цельнозерновой", cal100: 247, p100: 9.5, f100: 3.2, c100: 43 },
+        { name: "Хурма свежая", cal100: 67, p100: 0.5, f100: 0.4, c100: 15.3 },
+        { name: "Яблоко", cal100: 47, p100: 0.4, f100: 0.4, c100: 9.8 }
+    ];
+
+    // Глобальные переменные для хранения текущих рассчитанных норм (чтобы сравнивать в дневнике)
+    let currentNorms = { cal: 0, p: 0, f: 0, c: 0 };
+
+    function loadStorage() {
+        const savedProfile = localStorage.getItem('kbzhu_profile');
+        if (savedProfile) profile = JSON.parse(savedProfile);
+
+        const savedLogs = localStorage.getItem('kbzhu_logs');
+        if (savedLogs) foodLogsByDate = JSON.parse(savedLogs);
+
+        const savedFoods = localStorage.getItem('kbzhu_foods');
+        if (savedFoods) savedCustomFoods = JSON.parse(savedFoods);
+
+        document.getElementById('weight').value = profile.weight;
+        document.getElementById('height').value = profile.height;
+        document.getElementById('age').value = profile.age;
+        document.getElementById('activity').value = profile.activity;
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('diary-date').value = todayStr;
+    }
+
+    function saveStorage() {
+        localStorage.setItem('kbzhu_profile', JSON.stringify(profile));
+        localStorage.setItem('kbzhu_logs', JSON.stringify(foodLogsByDate));
+        localStorage.setItem('kbzhu_foods', JSON.stringify(savedCustomFoods));
+    }
+
+    function updateProfile() {
+        profile.weight = parseFloat(document.getElementById('weight').value) || 0;
+        profile.height = parseFloat(document.getElementById('height').value) || 0;
+        profile.age = parseInt(document.getElementById('age').value) || 0;
+        profile.activity = parseFloat(document.getElementById('activity').value) || 1.2;
+        saveStorage();
+        calculateNorms();
+    }
+
+    function calculateNorms() {
+        let bmr = (10 * profile.weight) + (6.25 * profile.height) - (5 * profile.age) + 5;
+        let tdee = bmr * profile.activity;
+        let targetCal = tdee * 0.85;
+
+        let p_cal_gram = 4;
+        let f_cal_gram = 9;
+        let c_cal_gram = 4;
+        
+        let total_ratio_units = (1 * p_cal_gram) + (1 * f_cal_gram) + (4 * c_cal_gram);
+        let units = targetCal / total_ratio_units;
+        
+        let p = units * 1;
+        let f = units * 1;
+        let c = units * 4;
+
+        // Сохраняем для прогресс-баров
+        currentNorms = {
+            cal: Math.round(targetCal),
+            p: Math.round(p),
+            f: Math.round(f),
+            c: Math.round(c)
+        };
+
+        let html = `
+            <div>Поддержание: <b>${Math.round(tdee)} ккал</b> | Цель (похудение): <b>~${Math.round(targetCal)} ккал</b></div>
+            <div style="margin-top: 5px; font-size: 14px; color: #475569;">
+                Целевое КБЖУ (пропорция 1:1:4): 
+                <b>${Math.round(targetCal)} ккал</b> | 
+                Б: <b>${Math.round(p)}г</b>, 
+                Ж: <b>${Math.round(f)}г</b>, 
+                У: <b>${Math.round(c)}г</b>
+            </div>
+        `;
+        document.getElementById('norms-display').innerHTML = html;
+        
+        // Обновляем прогресс при пересчете норм
+        loadDayData();
+    }
+
+    function renderFoodSelect() {
+        const select = document.getElementById('food-select');
+        const dbTbody = document.getElementById('food-db-tbody');
+        const searchVal = document.getElementById('food-search').value.toLowerCase();
+
+        select.innerHTML = '';
+        dbTbody.innerHTML = '';
+
+        savedCustomFoods.sort((a, b) => a.name.localeCompare(b.name));
+
+        savedCustomFoods.forEach((food, index) => {
+            if (food.name.toLowerCase().includes(searchVal)) {
+                let opt = document.createElement('option');
+                opt.value = index;
+                opt.textContent = `${food.name} (${food.cal100} ккал / 100г)`;
+                select.appendChild(opt);
+            }
+
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${food.name}</b></td>
+                <td>${food.cal100} ккал</td>
+                <td>Б:${food.p100} Ж:${food.f100} У:${food.c100}</td>
+                <td><button class="danger" style="padding: 4px 8px; font-size: 12px;" onclick="deleteFood(${index})">Удалить</button></td>
+            `;
+            dbTbody.appendChild(tr);
+        });
+    }
+
+    function addNewFood() {
+        let name = document.getElementById('new-food-name').value.trim();
+        let cal = parseFloat(document.getElementById('new-food-cal').value) || 0;
+        let p = parseFloat(document.getElementById('new-food-p').value) || 0;
+        let f = parseFloat(document.getElementById('new-food-f').value) || 0;
+        let c = parseFloat(document.getElementById('new-food-c').value) || 0;
+
+        if (!name) {
+            alert('Введите название продукта');
+            return;
+        }
+
+        savedCustomFoods.push({ name: name, cal100: cal, p100: p, f100: f, c100: c });
+        saveStorage();
+        renderFoodSelect();
+
+        document.getElementById('new-food-name').value = '';
+        document.getElementById('new-food-cal').value = '';
+        document.getElementById('new-food-p').value = '';
+        document.getElementById('new-food-f').value = '';
+        document.getElementById('new-food-c').value = '';
+    }
+
+    function deleteFood(index) {
+        if (confirm('Удалить продукт из базы?')) {
+            savedCustomFoods.splice(index, 1);
+            saveStorage();
+            renderFoodSelect();
+        }
+    }
+
+    function addFoodToDiary() {
+        let date = document.getElementById('diary-date').value;
+        let foodIndex = document.getElementById('food-select').value;
+        let amount = parseFloat(document.getElementById('food-amount').value) || 0;
+
+        if (!date || foodIndex === "" || amount <= 0) {
+            alert('Проверьте правильность введенных данных для дневника');
+            return;
+        }
+
+        let food = savedCustomFoods[foodIndex];
+        let multiplier = amount / 100;
+
+        let logItem = {
+            name: `${food.name} (${amount} г)`,
+            cal: Math.round(food.cal100 * multiplier),
+            p: parseFloat((food.p100 * multiplier).toFixed(1)),
+            f: parseFloat((food.f100 * multiplier).toFixed(1)),
+            c: parseFloat((food.c100 * multiplier).toFixed(1))
+        };
+
+        if (!foodLogsByDate[date]) {
+            foodLogsByDate[date] = [];
+        }
+        foodLogsByDate[date].push(logItem);
+
+        saveStorage();
+        loadDayData();
+    }
+
+    function loadDayData() {
+        let date = document.getElementById('diary-date').value;
+        let tbody = document.getElementById('diary-table-body');
+        tbody.innerHTML = '';
+
+        let items = foodLogsByDate[date] || [];
+        let totalCal = 0, totalP = 0, totalF = 0, totalC = 0;
+
+        items.forEach((item, index) => {
+            totalCal += item.cal;
+            totalP += item.p;
+            totalF += item.f;
+            totalC += item.c;
+
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.name}</td>
+                <td>${item.cal}</td>
+                <td>${item.p}</td>
+                <td>${item.f}</td>
+                <td>${item.c}</td>
+                <td><button class="danger" style="padding: 4px 8px; font-size: 12px;" onclick="deleteDiaryItem('${date}', ${index})">Удалить</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('day-totals').innerHTML = `
+            Итого за день: <b>${totalCal} ккал</b> | Б: ${totalP.toFixed(1)}г | Ж: ${totalF.toFixed(1)}г | У: ${totalC.toFixed(1)}г
+        `;
+
+        // Обновление графических индикаторов (прогресс-баров)
+        updateProgressBar('cal', totalCal, currentNorms.cal, 'ккал');
+        updateProgressBar('p', totalP, currentNorms.p, 'г');
+        updateProgressBar('f', totalF, currentNorms.f, 'г');
+        updateProgressBar('c', totalC, currentNorms.c, 'г');
+    }
+
+    function updateProgressBar(id, current, max, unit) {
+        let percent = max > 0 ? Math.round((current / max) * 100) : 0;
+        let bar = document.getElementById(`bar-${id}`);
+        let label = document.getElementById(`label-${id}`);
+        let percentLabel = document.getElementById(`percent-${id}`);
+
+        let names = { cal: 'Калории', p: 'Белки', f: 'Жиры', c: 'Углеводы' };
+        
+        label.textContent = `${names[id]}: ${Math.round(current * 10) / 10} / ${max} ${unit}`;
+        percentLabel.textContent = `${percent}%`;
+
+        bar.style.width = Math.min(percent, 100) + '%';
+
+        // Цветовая индикация в зависимости от процента выполнения
+        bar.className = 'progress-bar-fill';
+        if (percent > 105) {
+            bar.classList.add('danger'); // перебор
+        } else if (percent >= 90) {
+            bar.classList.add('success'); // норма достигнута
+        } else {
+            // стандартный синий
+        }
+    }
+
+    function deleteDiaryItem(date, index) {
+        if (foodLogsByDate[date]) {
+            foodLogsByDate[date].splice(index, 1);
+            if (foodLogsByDate[date].length === 0) {
+                delete foodLogsByDate[date];
+            }
+            saveStorage();
+            loadDayData();
+        }
+    }
+
+    function exportData() {
+        let data = {
+            profile: profile,
+            foodLogsByDate: foodLogsByDate,
+            savedCustomFoods: savedCustomFoods
+        };
+        let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+        let downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `kbzhu_backup_${new Date().toISOString().split('T')[0]}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+    }
+
+    function importData(event) {
+        let file = event.target.files[0];
+        if (!file) return;
+
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            processImportData(e.target.result);
+        };
+        reader.readAsText(file);
+    }
+
+    function importFromJsonText() {
+        let text = document.getElementById('import-json-text').value.trim();
+        if (!text) {
+            alert('Поле текста пустое. Вставьте JSON-данные.');
+            return;
+        }
+        processImportData(text);
+    }
+
+    function processImportData(jsonString) {
+        try {
+            let data = JSON.parse(jsonString);
+            if (data.profile) profile = data.profile;
+            if (data.foodLogsByDate) foodLogsByDate = data.foodLogsByDate;
+            if (data.savedCustomFoods) savedCustomFoods = data.savedCustomFoods;
+            saveStorage();
+            loadStorage();
+            renderFoodSelect();
+            calculateNorms();
+            loadDayData();
+            alert('Данные успешно импортированы!');
+            document.getElementById('import-json-text').value = '';
+        } catch (err) {
+            alert('Ошибка при разборе JSON. Убедитесь, что скопировали текст правильно.');
+        }
+    }
+
+    window.onload = function() {
+        loadStorage();
+        renderFoodSelect();
+        calculateNorms();
+        loadDayData();
+    };
+</script>
+
+</body>
+</html>
